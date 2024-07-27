@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+	<head>
+		<title>期末報告</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+		<script type="module">
+			// 函數：顯示氣象
+			const displayWeather = (temperature, humidity) => {
+				let temperatureMeter = document.querySelector("#weatherInfo .temperature meter");
+				let humidityMeter = document.querySelector("#weatherInfo .humidity meter");
+				
+				let temperatureSpan = document.querySelector("#weatherInfo .temperature span");
+				let humiditySpan = document.querySelector("#weatherInfo .humidity span");
+
+				temperatureSpan.innerHTML = `${temperature} °C`;
+				temperatureMeter.value = temperature;
+				
+				humiditySpan.innerHTML = `${(humidity*100).toFixed(1)} %`;
+				humidityMeter.value = humidity;
+			};
+
+			// 先取得資料
+			fetch("https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=CWA-84E082DD-774E-434B-9EF2-D289695E1844&format=JSON")
+			.then(data => data.json())
+			.then(cwbJson => {
+				// 確定資料可用
+				if(cwbJson.success != "true") {
+					alert(`錯誤：取得之資料不可用。請考慮重新整理頁面。`);
+					return;
+				}
+
+				// 把地點列出來
+				let selector = document.querySelector("#locationNameSelector");
+				selector.innerHTML = `<option>請選擇監測地點</option>`;
+
+				let locations = cwbJson.records.Station;
+				
+				for(let location of locations) {						 
+					/* and then create the full name */
+					location["locationFullName"] = 
+						`${location.GeoInfo.CountyName}${location.GeoInfo.TownName} ${location.StationName}`;
+				}
+
+				locations.sort((location1, location2) => {
+					return location1.locationFullName.localeCompare(location2.locationFullName);
+				});
+
+				for(let location of locations) {
+					selector.insertAdjacentHTML(
+						"beforeend", 
+						`<option value="${location.StationId}">${location.locationFullName}</option>`
+					);
+				}
+				
+				// 當地點被選擇
+				selector.addEventListener("change", (e) => {
+					let selectedLocation = cwbJson.records.Station
+						.find(location => location.StationId == selector.value);
+
+					displayWeather(
+						parseFloat(selectedLocation.WeatherElement.AirTemperature),
+						parseFloat(selectedLocation.WeatherElement.RelativeHumidity / 100)
+					);
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<h1>顯示氣象</h1>
+		<select id="locationNameSelector"></select>
+		<div id="weatherInfo">
+			<div class="temperature">
+				<div class="label">溫度</div>
+				<meter min="-30" low="0" mid="20" high="30" max="70" value="-30"></meter>
+				<span></span>
+			</div>
+			<div class="humidity">
+				<div class="label">溼度</div>
+				<meter min="0" mid="0.75" max="1"></meter>
+				<span></span>
+			</div>
+		</div>
+	</body>
+</html>
